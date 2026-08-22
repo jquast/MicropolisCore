@@ -137,7 +137,7 @@ void Micropolis::doZone(const Position &pos)
         return;
     }
 
-    printf("UNEXPECTED ZONE: %d !!!\n", tile);
+    // Tiles above CHURCH7LAST (1020-1023) occur in real Mac-era save files.
 }
 
 /**
