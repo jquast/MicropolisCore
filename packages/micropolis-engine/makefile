@@ -80,7 +80,6 @@ EMLDFLAGS = \
     -s ALLOW_MEMORY_GROWTH=1 \
     -s 'EXPORTED_RUNTIME_METHODS=["HEAPU16","wasmMemory"]' \
 	-lembind \
-	--emit-tsd=micropolisengine.d.ts \
 	--shell-file src/micropolisengine_template.html \
 	--js-library src/micropolisengine_lib.js \
 	--preload-file ../../content/micropolis/cities@cities/

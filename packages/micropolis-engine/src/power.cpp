@@ -129,6 +129,7 @@ void Micropolis::doPowerScan()
 
     // Clear power map.
     powerGridMap.clear();
+    powerSeekTrace.clear();
 
     // Power that the combined coal and nuclear power plants can deliver.
     Quad maxPower = coalPowerPop * COAL_POWER_STRENGTH +
@@ -142,6 +143,16 @@ void Micropolis::doPowerScan()
         do {
             numPower++;
             if (numPower > maxPower) {
+                // Flood truncated: the conductive network exceeds the
+                // plant budget. Reported once per engine instance - the
+                // condition persists every cycle, so an unguarded print
+                // would spam stderr on long runs.
+                if (reportedPowerBudgetExhausted == false) {
+                    reportedPowerBudgetExhausted = true;
+                    fprintf(stderr,
+                            "POWER: budget exhausted numPower=%lld maxPower=%lld (reported once)\n",
+                            (long long)numPower, (long long)maxPower);
+                }
                 sendMessage(MESSAGE_NOT_ENOUGH_POWER);
                 return;
             }
@@ -149,6 +160,8 @@ void Micropolis::doPowerScan()
                 pos.move(anyDir);
             }
             powerGridMap.worldSet(pos.posX, pos.posY, 1);
+            powerSeekTrace.push_back(pos.posX);
+            powerSeekTrace.push_back(pos.posY);
             conNum = 0;
             dir = DIR2_BEGIN;
             while (dir < DIR2_END && conNum < 2) {
@@ -189,6 +202,24 @@ Position Micropolis::pullPowerStack()
     assert(powerStackPointer > 0);
     powerStackPointer--;
     return powerStackXY[powerStackPointer + 1];
+}
+
+
+int Micropolis::powerSeekTraceSize() const
+{
+    return static_cast<int>(powerSeekTrace.size() / 2);
+}
+
+
+short Micropolis::powerSeekTraceX(int i) const
+{
+    return powerSeekTrace[2 * i];
+}
+
+
+short Micropolis::powerSeekTraceY(int i) const
+{
+    return powerSeekTrace[2 * i + 1];
 }
 
 

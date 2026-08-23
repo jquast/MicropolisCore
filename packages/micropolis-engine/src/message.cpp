@@ -177,7 +177,12 @@ void Micropolis::sendMessages()
         break;
 
     case 35:
-        if (pollutionAverage > /* 80 */ 60) {
+        // The authentic 1989 game fired at pollutionAverage > 80 (see
+        // the MicropolisCore source, message.cpp sendMessages); the
+        // earlier port tightened this to 60, which a dense but
+        // healthy city (pollution ~55-73) can never satisfy.  Restored
+        // to the 1989 value so "no complaints" is the real game's bar.
+        if (pollutionAverage > 80) {
             sendMessage(MESSAGE_HIGH_POLLUTION, -1, -1, true);
         }
         break;

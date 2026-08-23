@@ -384,6 +384,13 @@ bool Micropolis::loadFile(const std::string &filename)
 
     // Set the scenario id to 0.
     initWillStuff();
+    // initWillStuff wall-clock re-seeds the RNG; the 1989 game restored a
+    // deterministic saved seed instead (this format stores none, so 0).
+    // Without this the load-time mapScan below (doSimInit) mutates the
+    // city's zones with time-of-day random growth/decline - the same file
+    // loads to different maps run to run and every downstream simulation
+    // diverges (measured: 4 distinct post-load map hashes on one file).
+    seedRandom(0);
     scenario = SC_NONE;
     initSimLoad = 1;
     doInitialEval = false;
@@ -454,9 +461,13 @@ bool Micropolis::saveFile(const std::string &filename)
          * Save the map in the engine's native linear order: map[x][y] with
          * linear index x * WORLD_H + y. This is column-major relative to city
          * coordinates, and is the same order exposed to JavaScript/WASM tools.
+         *
+         * Only the map is written; the mop (map operations) scratch layer is
+         * transient tool state, never part of the classic .cty format, and the
+         * loader zeroes it when a classic file is read. Writing it would emit
+         * 51120-byte files that no other SimCity tool can read.
          */
-        save_short(((short *)&map[0][0]), WORLD_W * WORLD_H, f) &&
-        save_short(((short *)&mop[0][0]), WORLD_W * WORLD_H, f);
+        save_short(((short *)&map[0][0]), WORLD_W * WORLD_H, f);
 
     fclose(f);
 

@@ -967,8 +967,11 @@ public:
 
     /**
      * Callback interface.
+     *
+     * Native builds must zero this: the WASM heap is zero-initialized but a
+     * native heap is not, and setCallback deletes the previous pointer.
      */
-    Callback *callback;
+    Callback *callback = NULL;
 
 
     /**
@@ -1030,6 +1033,17 @@ public:
     short resZonePop; ///< Number of residential zones.
     short comZonePop; ///< Number of commercial zones.
     short indZonePop; ///< Number of industrial zones.
+
+    // Commercial drive outcomes (E1 measurement): makeTraffic result counts
+    // accumulated over the run. NoRoad = -1 (no ring road), Fail = 0
+    // (ring road but no destination), Success = 1 (drive reached a zone).
+    int comDriveSuccess;
+    int comDriveFail;
+    int comDriveNoRoad;
+
+    // Set once when doPowerScan truncates its flood (conductive network
+    // exceeds the plant budget); gates the stderr budget-exhausted print.
+    bool reportedPowerBudgetExhausted;
 
     /**
      * Total zone population.
@@ -1410,9 +1424,12 @@ private:
 
     /**
      * Memory for map array.
+     *
+     * Native builds must zero these: initMapArrays guards allocation with
+     * if (!mapBase), and a fresh native heap is not zero-initialized.
      */
-    unsigned short *mapBase;
-    unsigned short *mopBase;
+    unsigned short *mapBase = NULL;
+    unsigned short *mopBase = NULL;
 
 
     void initMapArrays();
@@ -2020,6 +2037,11 @@ private:
     /** Stack of X/Y positions for traversing setting the power grid. */
     Position powerStackXY[POWER_STACK_SIZE];
 
+    /** Ordered (x, y) trace of the last doPowerScan walk, 2 shorts per step
+     * (each tile the flood marked powered, in walk order).  Only for
+     * visualization (simcityview --show-powered); cleared every scan. */
+    std::vector<short> powerSeekTrace;
+
 
     void doPowerScan();
 
@@ -2156,6 +2178,8 @@ public:
 
     void updateFundEffects();
 
+    void setValves();
+
 
 private:
 
@@ -2188,8 +2212,6 @@ private:
     void simLoadInit();
 
     void setCommonInits();
-
-    void setValves();
 
     void clearCensus();
 
@@ -2368,6 +2390,8 @@ public:
     bool enableSound; ///< Enable sound
 
     bool enableDisasters; ///< Enable disasters
+
+    bool enableHospitals; ///< Enable hospitals and churches
 
     short messageNumber;
 
@@ -2718,6 +2742,27 @@ public:
 
     void setPasses(int passes);
 
+    int terrainFitsCount(int w, int h);
+
+    int terrainPackCount(int w, int h);
+
+    std::vector<int> bestTerrainSearch(int seed0, int count,
+                                       const std::vector<int> &sizes);
+
+    void runSimulation(int phases);
+
+    void powerScanNow();
+
+    /** Number of tiles the last power flood walked (the powerSeekTrace
+     * length).  Zero when the last scan flooded nothing. */
+    int powerSeekTraceSize() const;
+
+    /** X of the i-th walked tile (0 <= i < powerSeekTraceSize). */
+    short powerSeekTraceX(int i) const;
+
+    /** Y of the i-th walked tile (0 <= i < powerSeekTraceSize). */
+    short powerSeekTraceY(int i) const;
+
     void setGameLevelFunds(GameLevel level);
 
     void setGameLevel(GameLevel level);
@@ -2735,6 +2780,8 @@ public:
     void doNewGame();
 
     void setEnableDisasters(bool value);
+
+    void setEnableHospitals(bool value);
 
     void setAutoBudget(bool value);
 

@@ -112,6 +112,10 @@ SimSprite *Micropolis::newSprite(const std::string &name, int type, int x, int y
         freeSprites = sprite->next;
     } else {
         sprite = (SimSprite *)newPtr(sizeof (SimSprite));
+        // newPtr is malloc: the std::string members are unconstructed and
+        // only happened to work because the WASM heap was zeroed. Construct
+        // them properly (native harness fix).
+        new (sprite) SimSprite();
     }
 
     sprite->name = name;
@@ -1012,6 +1016,25 @@ void Micropolis::doMonsterSprite(SimSprite *sprite)
     static const short ND2[4] = {  1,  2,  3,  0 };
     static const short nn1[4] = {  2,  5,  8, 11 };
     static const short nn2[4] = { 11,  2,  5,  8 };
+    // makeMonster()/doMonsterSprite() (re)set sprite->count to 1000 at
+    // spawn and at each life-phase transition (reaching its target,
+    // turning for home, being retargeted); an immunity window right after
+    // any of those keeps the river-tile check below from killing it while
+    // it is still standing over water it was (re)placed on.
+    //
+    // The window has to cover much more than the first step off the spawn
+    // tile.  The monster moves 2 pixels a tick, so it takes 8 ticks to
+    // cross one 16-pixel tile, and its hot spot keeps dipping back into
+    // the water for as long as it is walking a coastline; a short window
+    // just moves the premature death a couple of tiles further out.  500
+    // is the figure micropolisJS reached for the same bug (monsterSprite.js:
+    // "tileValue === RIVER && this.count < 500"), and micropolis-java
+    // disabled the river check outright ("c == RIVER && this.count != 0 &&
+    // false").  Measured over 240 monsters on 8 maps it gives a median life
+    // of 615 sprite ticks against the tornado's 644, where the previous 20
+    // gave 20 ticks, about two and a half tiles of walking.
+    static const int MONSTER_LIFE = 1000;
+    static const int MONSTER_SPAWN_GRACE = 500;
     short d, z, c;
 
     if (sprite->soundCount > 0) {
@@ -1212,7 +1235,9 @@ void Micropolis::doMonsterSprite(SimSprite *sprite)
     c = getChar(sprite->x + sprite->xHot, sprite->y + sprite->yHot);
 
     if (c == -1
-          || (c == RIVER && sprite->count != 0 && sprite->control == -1)) {
+          || (c == RIVER && sprite->count != 0
+              && sprite->count <= MONSTER_LIFE - MONSTER_SPAWN_GRACE
+              && sprite->control == -1)) {
         sprite->frame = 0; /* kill scary monster */
     }
 
@@ -1910,9 +1935,13 @@ void Micropolis::makeShipHere(int x, int y)
 
 /**
  * Start a new monster sprite.
- * @todo Make monster over land, because it disappears if it's made over water.
- *       Better yet make monster not disappear for a while after it's created,
- *       over land or water. Should never disappear prematurely.
+ *
+ * Spawns standing on a river tile (the "emerges from the sea" trope); it
+ * used to disappear within a tick or two of being made, because
+ * doMonsterSprite()'s river-tile check killed any monster it found
+ * standing on water and this one always was. Fixed by giving it an
+ * immunity window after spawn (MONSTER_SPAWN_GRACE in doMonsterSprite())
+ * long enough to walk clear of the coast it came out of.
  */
 void Micropolis::makeMonster()
 {

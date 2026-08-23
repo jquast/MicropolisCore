@@ -322,6 +322,18 @@ void Micropolis::setEnableDisasters(bool value)
 
 
 /**
+ * Set whether new hospitals and churches may be placed on residential
+ * zones. Disabling only stops new placement; existing buildings keep
+ * their normal repair/removal behavior.
+ * @param value New setting for #enableHospitals
+ */
+void Micropolis::setEnableHospitals(bool value)
+{
+    enableHospitals = value;
+}
+
+
+/**
  * Set the auto-budget to the given value.
  * @param value New value for the auto-budget setting.
  */

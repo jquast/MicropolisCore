@@ -137,7 +137,8 @@ void Micropolis::doZone(const Position &pos)
         return;
     }
 
-    printf("UNEXPECTED ZONE: %d !!!\n", tile);
+    // Tiles above CHURCH7LAST (1020-1023 appear in real Mac saves) have no
+    // C++ handler; they are inert zone blocks and are left alone.
 }
 
 /**
@@ -586,7 +587,7 @@ void Micropolis::doResidential(const Position &pos, bool zonePower)
         if (zscore > -350 &&
             ((short)(zscore - 26380) > ((short)getRandom16Signed()))) {
 
-            if (!tpop && !(getRandom16() & 3)) {
+            if (enableHospitals && !tpop && !(getRandom16() & 3)) {
                 makeHospital(pos);
                 return;
             }
@@ -776,6 +777,13 @@ void Micropolis::doCommercial(const Position &pos, bool zonePower)
     if (tpop > getRandom(5)) {
         /* Try driving from commercial to industrial */
         TrfGood = makeTraffic(pos, ZT_INDUSTRIAL);
+        if (TrfGood == 1) {
+            comDriveSuccess++;
+        } else if (TrfGood == 0) {
+            comDriveFail++;
+        } else {
+            comDriveNoRoad++;
+        }
     } else {
         TrfGood = 1;
     }

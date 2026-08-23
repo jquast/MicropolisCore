@@ -128,8 +128,6 @@ void Micropolis::setCallback(Callback *callback0, emscripten::val callbackVal0)
 /** Initialize simulator variables to a sane default. */
 void Micropolis::init()
 {
-    printf("init");
-    
     ////////////////////////////////////////////////////////////////////////
     // allocate.cpp
 
@@ -165,6 +163,12 @@ void Micropolis::init()
 
     // short indZonePop;
     indZonePop = 0;
+
+    // Commercial drive outcome counters.
+    comDriveSuccess = 0;
+    comDriveFail = 0;
+    comDriveNoRoad = 0;
+    reportedPowerBudgetExhausted = false;
 
     // short totalZonePop;
     totalZonePop = 0;
@@ -618,6 +622,8 @@ void Micropolis::init()
     enableSound = false;
 
     enableDisasters = true;
+
+    enableHospitals = true;
 
     evalChanged = false;
 
