@@ -215,3 +215,25 @@ zone.cpp: micropolis.h
 
 
 ########################################################################
+# Address-sanitizer build for hunting memory bugs
+
+
+ASAN_BUILD = build-asan
+ASAN_FLAGS = -fsanitize=address -g
+ASAN_OBJECTS = $(SOURCES:%.cpp=$(ASAN_BUILD)/%.o)
+ASAN_LIBRARY = $(ASAN_BUILD)/micropolisengine
+
+
+asan: $(ASAN_LIBRARY)
+
+$(ASAN_LIBRARY): $(ASAN_OBJECTS)
+	mkdir -p $(ASAN_BUILD)
+	$(EMCC) $(EMLDFLAGS) $(ASAN_FLAGS) -o $(ASAN_LIBRARY).html $^
+
+$(ASAN_BUILD)/%.o: %.cpp $(HEADERS)
+	mkdir -p $(dir $@)
+	$(EMCC) $(EMCXXFLAGS) $(ASAN_FLAGS) -c $< -o $@
+
+clean-asan:
+	rm -rf $(ASAN_BUILD)
+
