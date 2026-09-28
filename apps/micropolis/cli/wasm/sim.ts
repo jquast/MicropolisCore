@@ -1,16 +1,17 @@
 /**
- * WASM engine subcommands: `micropolis sim smoke|info`.
+ * WASM engine subcommands: `micropolis sim smoke|info|save`.
  *
  * `extendSimCommands(argv)` adds the `sim` branch using the shared WASM loader.
  */
 
+import { writeFileSync } from 'node:fs';
 import type { Argv } from 'yargs';
 import type { MainModule, Micropolis } from '../../src/types/micropolisengine.d.js';
 import { createNoopJsCallback } from '../../src/lib/wasm/callbacks';
 import { loadMicropolisMainModule } from '../../src/lib/wasm/node';
 import { normalizeStructuredFormat, stringifyStructured } from '../lib/format.js';
 
-type Flags = { city?: string; ticks?: number; format?: string };
+type Flags = { city?: string; ticks?: number; format?: string; out?: string };
 
 function stringFlag(v: unknown, fallback: string): string {
 	return typeof v === 'string' && v.length > 0 ? v : fallback;
@@ -82,6 +83,28 @@ async function runInfo(flags: Flags) {
 	}
 }
 
+async function runSave(flags: Flags) {
+	const city = stringFlag(flags.city, '/cities/haight.cty');
+	const out = stringFlag(flags.out, 'micropolis.cty');
+	const ticks = numberFlag(flags.ticks, 0);
+	const savedPath = '/micropolis-save.cty';
+	const engine = await loadMicropolisMainModule();
+	const micropolis = new engine.Micropolis();
+	const cb = createNoopJsCallback(engine);
+	micropolis.setCallback(cb, {});
+	micropolis.init();
+	try {
+		const loaded = micropolis.loadCity(city);
+		for (let i = 0; i < ticks; i += 1) micropolis.simTick();
+		micropolis.saveCityAs(savedPath);
+		const bytes = engine.FS_readFile(savedPath) as Uint8Array;
+		writeFileSync(out, bytes);
+		return { handled: true, loaded, city, ticks, saved: out, bytes: bytes.length };
+	} finally {
+		micropolis.delete();
+	}
+}
+
 function printStructured(value: unknown, format: string) {
 	const f = normalizeStructuredFormat(format);
 	if (f === 'csv') {
@@ -136,6 +159,31 @@ export function extendSimCommands(argv: Argv): Argv {
 					printStructured(await runInfo(argv), stringFlag(argv.format, 'json'));
 				}
 			)
-			.demandCommand(1, 'Specify sim smoke or sim info')
+			.command(
+				'save',
+				'Load a city, optionally tick, and write it back out as a .cty file',
+				(ys) =>
+					ys
+						.option('city', {
+							type: 'string',
+							default: '/cities/haight.cty',
+							describe: 'Virtual path passed to loadCity'
+						})
+						.option('ticks', {
+							type: 'number',
+							default: 0,
+							describe: 'Number of simTick() calls before saving'
+						})
+						.option('out', {
+							alias: 'o',
+							type: 'string',
+							default: 'micropolis.cty',
+							describe: 'Host path to write the .cty file to'
+						}),
+				async (argv) => {
+					printStructured(await runSave(argv), stringFlag(argv.format, 'json'));
+				}
+			)
+			.demandCommand(1, 'Specify sim smoke, sim info or sim save')
 	);
 }
