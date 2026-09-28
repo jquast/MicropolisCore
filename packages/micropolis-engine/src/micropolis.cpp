@@ -736,6 +736,7 @@ void Micropolis::simInit()
     resetMapState();
     resetEditorState();
     clearMap();
+    randomlySeedRandom();
     initWillStuff();
     setFunds(5000);
     setGameLevelFunds(LEVEL_EASY);
